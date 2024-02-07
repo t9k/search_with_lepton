@@ -439,22 +439,32 @@ class RAG(Photon):
             """
             pass
 
+        system_prompt = _more_questions_prompt.format(
+            context="\n\n".join([c["snippet"] for c in contexts]))
+        if any(keyword in self.model.lower()
+               for keyword in ['mistral', 'mixtral']):
+            messages = [
+                {
+                    "role": "user",
+                    "content": system_prompt + query
+                },
+            ]
+        else:
+            messages = [
+                {
+                    "role": "system",
+                    "content": system_prompt
+                },
+                {
+                    "role": "user",
+                    "content": query
+                },
+            ]
+
         try:
             response = self.local_client().chat.completions.create(
                 model=self.model,
-                messages=[
-                    {
-                        "role":
-                        "system",
-                        "content":
-                        _more_questions_prompt.format(context="\n\n".join(
-                            [c["snippet"] for c in contexts])),
-                    },
-                    {
-                        "role": "user",
-                        "content": query,
-                    },
-                ],
+                messages=messages,
                 tools=[{
                     "type": "function",
                     "function": tool.get_tools_spec(ask_related_questions),
@@ -563,25 +573,37 @@ class RAG(Photon):
             f"[[citation:{i+1}]] {c['snippet']}"
             for i, c in enumerate(contexts)
         ]))
+        if any(keyword in self.model.lower()
+               for keyword in ['mistral', 'mixtral']):
+            messages = [
+                {
+                    "role": "user",
+                    "content": system_prompt + query
+                },
+            ]
+        else:
+            messages = [
+                {
+                    "role": "system",
+                    "content": system_prompt
+                },
+                {
+                    "role": "user",
+                    "content": query
+                },
+            ]
+
         try:
             client = self.local_client()
             llm_response = client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": system_prompt
-                    },
-                    {
-                        "role": "user",
-                        "content": query
-                    },
-                ],
+                messages=messages,
                 max_tokens=1024,
                 stop=stop_words,
                 stream=True,
                 temperature=0.9,
             )
+
             if self.should_do_related_questions and generate_related_questions:
                 # While the answer is being generated, we can start generating
                 # related questions as a future.
